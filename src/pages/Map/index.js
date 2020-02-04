@@ -1,32 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { Alert, StyleSheet, View, Dimensions, TouchableOpacity, Plataform } from 'react-native';
-import MapView, { Marker, Polyline, AnimatedRegion } from 'react-native-maps';
+import React, { Component } from 'react';
+import { Alert, StyleSheet, View, Dimensions, TouchableOpacity } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
-import { Ionicons } from '@expo/vector-icons';
+import uuid from 'uuid/v4';
 
 import '@firebase/firestore';
 
 import firebase from '../../services/firebase';
 import currentPosition from '../../utils/position';
 
-export default function Map() {
-    const [press, setPress] = useState(false);
-    const [coords, setCoords] = useState([]);
-    const [watch, setWatch] = useState();
-    const [run, setRun] = useState('');
-    const [region, setRegion] = useState({
-        latitude: 0,
-        longitude: 0,
-        latitudeDelta: 0,
-        longitudeDelta: 0
-    });
+export default class Map extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            idRun: '',
+            press: false,
+            coords: [],
+            watch: null,
+            updateMap: true,
+            region: {
+                latitude: 0,
+                longitude: 0,
+                latitudeDelta: 0,
+                longitudeDelta: 0
+            }
+        }
+    }
 
-    useEffect(() => {
-        getPosition();
-    }, []);
-
-    const getPosition = async () => {
+    async componentDidMount() {
         let { status } = await Permissions.askAsync(Permissions.LOCATION);
         if (status !== 'granted') {
             Alert.alert('Aviso', 'Você não deu permissão para acessar o GPS');
@@ -36,107 +39,127 @@ export default function Map() {
                 accuracy: Location.Accuracy.Highest
             });
             const { latitudeDelta, longitudeDelta } = currentPosition(coords.latitude, coords.accuracy);
-            setRegion({
-                latitude: coords.latitude,
-                longitude: coords.longitude,
-                latitudeDelta: latitudeDelta,
-                longitudeDelta: longitudeDelta
+            this.setState({
+                region: {
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    latitudeDelta: latitudeDelta,
+                    longitudeDelta: longitudeDelta
+                }
             });
         }
     };
 
-    const watchPosition = async () => {
+    watchPosition = async () => {
+        const { press, watch } = this.state;
         if (press) {
-            setPress(false);
-            setCoords([]);
             watch.remove();
-            stopRun();
+            this.setState({ press: false, coords: [], watch: null });
+            this.stopRun();
         } else {
-            setPress(true);
-            beginRun();
+            this.setState({ press: true });
+            await this.beginRun();
+            setTimeout(() => {
+                this.setState({ updateMap: false });
+                Alert.alert('Atenção', 'Iremos parar de atualizar em tempo real.');
+            }, 30000);
             const position = await Location.watchPositionAsync({
                 accuracy: Location.Accuracy.Highest,
-                timeInterval: 8000,
+                timeInterval: 2000,
                 distanceInterval: 0,
             }, async ({ coords }) => {
-                savePosition(coords);
+                this.savePosition(coords);
             });
-            setWatch(position);
+            this.setState({ watch: position });
         }
     };
 
-    const beginRun = async () => {
-        const id = String(new Date().getTime());
-        setRun(id);
-        setCoords(prevCoords => prevCoords.concat({
-            latitude: region.latitude,
-            longitude: region.longitude
-        }));
-        await firebase.firestore().collection('run').doc(id).set({
-            date: new Date().getTime(),
+    beginRun = async () => {
+        const { region } = this.state;
+        const id = uuid();
+        this.setState({
+            idRun: id,
+            coords: [{
+                latitude: region.latitude,
+                longitude: region.longitude
+            }]
+        });
+        await firebase.firestore().collection('runs').doc(id).set({
             begin: new Date().getTime(),
             end: null
         });
-        await firebase.firestore().collection('run').doc(id).collection('coords').add({
+        await firebase.firestore().collection('runs').doc(id).collection('coords').add({
             latitude: region.latitude,
             longitude: region.longitude,
             timestamp: new Date().getTime()
         });
     };
 
-    const stopRun = async () => {
-        await firebase.firestore().collection('run').doc(run).update({
+    stopRun = async () => {
+        const { idRun } = this.state;
+        await firebase.firestore().collection('runs').doc(idRun).update({
             end: new Date().getTime()
         });
+        this.setState({ updateMap: true });
     };
 
-    const savePosition = async (coords) => {
-        const id = run;
-        const { latitudeDelta, longitudeDelta } = currentPosition(coords.latitude, coords.accuracy);
-        setRegion({
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            latitudeDelta: latitudeDelta,
-            longitudeDelta: longitudeDelta
-        })
-        setCoords(prevCoords => prevCoords.concat({
-            latitude: coords.latitude,
-            longitude: coords.longitude
-        }));    
-        await firebase.firestore().collection('run').doc(id).collection('coords').add({
+    savePosition = async (coords) => {
+        const { idRun, updateMap } = this.state;
+        if (updateMap) {
+            const { latitudeDelta, longitudeDelta } = currentPosition(coords.latitude, coords.accuracy);
+            this.setState(prevState => {
+                return {
+                    ...prevState,
+                    region: {
+                        latitude: coords.latitude,
+                        longitude: coords.longitude,
+                        latitudeDelta: latitudeDelta,
+                        longitudeDelta: longitudeDelta
+                    },
+                    coords: prevState.coords.concat({
+                        latitude: coords.latitude,
+                        longitude: coords.longitude
+                    }),
+                };
+            });
+        }
+        firebase.firestore().collection('runs').doc(idRun).collection('coords').add({
             latitude: coords.latitude,
             longitude: coords.longitude,
             timestamp: new Date().getTime()
         });
     };
 
-    return (
-        <View style={styles.container}>
-            <MapView
-                style={styles.mapStyle}
-                region={region}
-                maxZoomLevel={16}
-                loadingEnabled
-            >
-                <Polyline coordinates={coords} strokeWidth={3} strokeColor="#4C4CFF" />
-                <Marker coordinate={region} />
-            </MapView>
-            <TouchableOpacity
-                style={[styles.buttonFloat, { backgroundColor: !press ? '#4C4CFF' : '#B20000' }]}
-                onPress={watchPosition}
-            >
-                {
-                    !press ?
-                        (
-                            <Ionicons name="md-play" size={25} color="#FFF" />
-                        ) :
-                        (
-                            <Ionicons name="md-stopwatch" size={25} color="#FFF" />
-                        )
-                }
-            </TouchableOpacity>
-        </View>
-    )
+    render() {
+        const { region, coords, press } = this.state;
+        return (
+            <View style={styles.container}>
+                <MapView
+                    style={styles.mapStyle}
+                    region={region}
+                    maxZoomLevel={16}
+                    loadingEnabled
+                >
+                    <Polyline coordinates={coords} strokeWidth={3} strokeColor="#4C4CFF" />
+                    <Marker coordinate={region} />
+                </MapView>
+                <TouchableOpacity
+                    style={[styles.buttonFloat, { backgroundColor: !press ? '#4C4CFF' : '#B20000' }]}
+                    onPress={this.watchPosition}
+                >
+                    {
+                        !press ?
+                            (
+                                <Ionicons name="md-play" size={25} color="#FFF" />
+                            ) :
+                            (
+                                <Ionicons name="md-stopwatch" size={25} color="#FFF" />
+                            )
+                    }
+                </TouchableOpacity>
+            </View>
+        )
+    }
 };
 
 const styles = StyleSheet.create({
@@ -159,4 +182,3 @@ const styles = StyleSheet.create({
         borderRadius: 50,
     }
 });
-
