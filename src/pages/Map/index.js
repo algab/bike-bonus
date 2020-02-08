@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
-import { Alert, StyleSheet, View, Dimensions, TouchableOpacity } from 'react-native';
+import { Alert, AppState, AsyncStorage, Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
+import * as TaskManager from 'expo-task-manager';
 import uuid from 'uuid/v4';
 
 import '@firebase/firestore';
@@ -11,25 +12,29 @@ import '@firebase/firestore';
 import firebase from '../../services/firebase';
 import currentPosition from '../../utils/position';
 
+import bike from '../../../assets/bike.png';
+
+const TASK = 'location-task';
+const TASK_STORAGE = 'background-location';
+
 export default class Map extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            idRun: '',
-            pressStart: false,
-            pressPause: true,
-            pressStop: false,
-            coords: [],
-            watch: null,
-            updateMap: true,
-            region: {
-                latitude: 0,
-                longitude: 0,
-                latitudeDelta: 0,
-                longitudeDelta: 0
-            }
+    state = {
+        idRun: '',
+        appState: AppState.currentState,
+        pressStart: false,
+        pressPause: true,
+        pressStop: false,
+        coords: [],
+        watch: null,
+        updateMap: true,
+        updateMapTimeout: null,
+        region: {
+            latitude: 0,
+            longitude: 0,
+            latitudeDelta: 0,
+            longitudeDelta: 0
         }
-    }
+    };
 
     async componentDidMount() {
         let { status } = await Permissions.askAsync(Permissions.LOCATION);
@@ -49,10 +54,17 @@ export default class Map extends Component {
                     longitudeDelta: longitudeDelta
                 }
             });
+            AppState.addEventListener('change', this.handleAppStateChange);
         }
     };
 
+    async componentWillUnmount() {
+        AppState.removeEventListener('change', this.handleAppStateChange);
+        await AsyncStorage.removeItem(TASK_STORAGE);
+    };
+
     beginRun = async () => {
+        await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify([]));
         const { region, idRun } = this.state;
         this.setState({ pressStart: true, pressPause: false, pressStop: true });
         if (idRun === '') {
@@ -73,18 +85,22 @@ export default class Map extends Component {
                 longitude: region.longitude,
                 timestamp: new Date().getTime()
             });
-            setTimeout(() => {
+            const timeout = setTimeout(() => {
                 this.setState({ updateMap: false });
                 Alert.alert('Atenção', 'Iremos parar de atualizar em tempo real.');
             }, 30000);
+            this.setState({ updateMapTimeout: timeout });
         }
         this.watchPosition();
     };
 
     pauseRun = async () => {
         this.setState({ pressStart: false, pressPause: true });
-        const { watch, idRun } = this.state;
+        const { idRun, watch, updateMapTimeout } = this.state;
         watch.remove();
+        clearTimeout(updateMapTimeout);
+        await Location.stopLocationUpdatesAsync(TASK);
+        await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify([]));
         firebase.firestore().collection('runs').doc(idRun).collection('coords').orderBy('timestamp').get()
             .then(snapshot => {
                 const coords = [];
@@ -92,13 +108,15 @@ export default class Map extends Component {
                     coords.push({ latitude: doc.data().latitude, longitude: doc.data().longitude });
                 });
                 const lastCoord = coords[coords.length - 1];
-                const { latitudeDelta, longitudeDelta } = currentPosition(lastCoord.latitude, 0);
                 this.setState({
-                    watch: null, coords, region: {
+                    coords,
+                    watch: null,
+                    updateMapTimeout: null,
+                    region: {
                         latitude: lastCoord.latitude,
                         longitude: lastCoord.longitude,
-                        latitudeDelta: latitudeDelta,
-                        longitudeDelta: longitudeDelta
+                        latitudeDelta: 0,
+                        longitudeDelta: 0
                     }
                 });
             });
@@ -106,12 +124,39 @@ export default class Map extends Component {
 
     stopRun = async () => {
         this.setState({ pressStart: false, pressPause: true, pressStop: false });
-        const { idRun, watch } = this.state;
+        const { idRun, watch, updateMapTimeout } = this.state;
         if (watch !== null) {
             watch.remove();
         }
+        if (updateMapTimeout !== null) {
+            clearTimeout(updateMapTimeout);
+        }
+        if (await Location.hasStartedLocationUpdatesAsync(TASK)) {
+            await Location.stopLocationUpdatesAsync(TASK);
+        }
+        await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify([]));
         await firebase.firestore().collection('runs').doc(idRun).update({ end: new Date().getTime() });
-        this.setState({ updateMap: true, idRun: '', coords: [], watch: null });
+        firebase.firestore().collection('runs').doc(idRun).collection('coords').orderBy('timestamp').get()
+            .then(snapshot => {
+                const coords = [];
+                snapshot.forEach(doc => {
+                    coords.push({ latitude: doc.data().latitude, longitude: doc.data().longitude });
+                });
+                const lastCoord = coords[coords.length - 1];
+                this.setState({
+                    coords: [],
+                    watch: null,
+                    updateMap: true,
+                    updateMapTimeout: null,
+                    idRun: '',
+                    region: {
+                        latitude: lastCoord.latitude,
+                        longitude: lastCoord.longitude,
+                        latitudeDelta: 0,
+                        longitudeDelta: 0
+                    }
+                });
+            });
     };
 
     watchPosition = async () => {
@@ -119,14 +164,18 @@ export default class Map extends Component {
             accuracy: Location.Accuracy.Highest,
             timeInterval: 2000,
             distanceInterval: 0,
-        }, async ({ coords }) => {
-            this.savePosition(coords);
+        }, async (location) => this.savePosition(location));
+        await Location.startLocationUpdatesAsync(TASK, {
+            accuracy: Location.Accuracy.Highest,
+            timeInterval: 2000,
+            distanceInterval: 200
         });
         this.setState({ watch: position });
     };
 
-    savePosition = async (coords) => {
+    savePosition = async (location) => {
         const { idRun, updateMap } = this.state;
+        const { coords } = location;
         if (updateMap) {
             const { latitudeDelta, longitudeDelta } = currentPosition(coords.latitude, coords.accuracy);
             this.setState(prevState => {
@@ -148,8 +197,22 @@ export default class Map extends Component {
         firebase.firestore().collection('runs').doc(idRun).collection('coords').add({
             latitude: coords.latitude,
             longitude: coords.longitude,
-            timestamp: new Date().getTime()
+            timestamp: location.timestamp
         });
+    };
+
+    handleAppStateChange = async (nextAppState) => {
+        const { appState, idRun } = this.state;
+        if (appState.match(/inactive|background/) && nextAppState === 'active') {
+            const data = JSON.parse(await AsyncStorage.getItem(TASK_STORAGE));
+            if (data) {
+                for (let i = 0; i < data.length; i++) {
+                    firebase.firestore().collection('runs').doc(idRun).collection('coords').add(data[i]);
+                }
+                await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify([]));
+            }
+        }
+        this.setState({ appState: nextAppState });
     };
 
     render() {
@@ -159,11 +222,11 @@ export default class Map extends Component {
                 <MapView
                     style={styles.mapStyle}
                     region={region}
-                    maxZoomLevel={16}
+                    maxZoomLevel={18}
                     loadingEnabled
                 >
                     <Polyline coordinates={coords} strokeWidth={3} strokeColor="#4C4CFF" />
-                    <Marker coordinate={region} />
+                    <Marker coordinate={region} image={bike} />
                 </MapView>
                 <View style={styles.viewButtons}>
                     {
@@ -210,7 +273,7 @@ const styles = StyleSheet.create({
     },
     mapStyle: {
         width: Dimensions.get('window').width,
-        height: Dimensions.get('window').height - 70,
+        height: '100%',
     },
     viewButtons: {
         flex: 1,
@@ -221,10 +284,25 @@ const styles = StyleSheet.create({
     buttonFloat: {
         width: 50,
         height: 50,
-        bottom: 40,
+        bottom: 50,
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 50,
         marginRight: 20
     },
+});
+
+TaskManager.defineTask(TASK, async ({ data }) => {
+    const { locations } = data;
+    let coords = JSON.parse(await AsyncStorage.getItem(TASK_STORAGE));
+    if (coords.length === 0) {
+        for (let i = 0; i < locations[i].length; i++) {
+            coords.push({
+                latitude: locations[i].coords.latitude,
+                longitude: locations[i].coords.longitude,
+                timestamp: locations[i].timestamp,
+            });
+        }
+        await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify(coords));
+    }
 });
