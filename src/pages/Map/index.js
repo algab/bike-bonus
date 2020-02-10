@@ -6,13 +6,14 @@ import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
 import * as TaskManager from 'expo-task-manager';
 import uuid from 'uuid/v4';
-
 import '@firebase/firestore';
+
+import Loader from '../../components/Loader';
 
 import firebase from '../../services/firebase';
 import currentPosition from '../../utils/position';
 
-import bike from '../../../assets/bike.png';
+import pinMarker from '../../../assets/marker.png';
 
 const TASK = 'location-task';
 const TASK_STORAGE = 'background-location';
@@ -21,6 +22,7 @@ export default class Map extends Component {
     state = {
         idRun: '',
         appState: AppState.currentState,
+        loading: false,
         pressStart: false,
         pressPause: true,
         pressStop: false,
@@ -37,7 +39,7 @@ export default class Map extends Component {
     };
 
     async componentDidMount() {
-        let { status } = await Permissions.askAsync(Permissions.LOCATION);
+        const { status } = await Permissions.askAsync(Permissions.LOCATION);
         if (status !== 'granted') {
             Alert.alert('Aviso', 'Você não deu permissão para acessar o GPS');
         } else {
@@ -66,7 +68,7 @@ export default class Map extends Component {
     beginRun = async () => {
         await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify([]));
         const { region, idRun } = this.state;
-        this.setState({ pressStart: true, pressPause: false, pressStop: true });
+        this.setState({ loading: true });
         if (idRun === '') {
             const id = uuid();
             this.setState({
@@ -91,11 +93,12 @@ export default class Map extends Component {
             }, 30000);
             this.setState({ updateMapTimeout: timeout });
         }
+        this.setState({ pressStart: true, pressPause: false, pressStop: true, loading: false });
         this.watchPosition();
     };
 
     pauseRun = async () => {
-        this.setState({ pressStart: false, pressPause: true });
+        this.setState({ loading: true });
         const { idRun, watch, updateMapTimeout } = this.state;
         watch.remove();
         clearTimeout(updateMapTimeout);
@@ -111,6 +114,9 @@ export default class Map extends Component {
                 this.setState({
                     coords,
                     watch: null,
+                    pressStart: false,
+                    pressPause: true,
+                    loading: false,
                     updateMapTimeout: null,
                     region: {
                         latitude: lastCoord.latitude,
@@ -123,7 +129,7 @@ export default class Map extends Component {
     };
 
     stopRun = async () => {
-        this.setState({ pressStart: false, pressPause: true, pressStop: false });
+        this.setState({ loading: true });
         const { idRun, watch, updateMapTimeout } = this.state;
         if (watch !== null) {
             watch.remove();
@@ -147,6 +153,10 @@ export default class Map extends Component {
                     coords: [],
                     watch: null,
                     updateMap: true,
+                    pressStart: false,
+                    pressPause: true,
+                    pressStop: false,
+                    loading: false,
                     updateMapTimeout: null,
                     idRun: '',
                     region: {
@@ -216,17 +226,18 @@ export default class Map extends Component {
     };
 
     render() {
-        const { region, coords } = this.state;
+        const { region, coords, loading } = this.state;
         return (
             <View style={styles.container}>
+                <Loader loading={loading} />
                 <MapView
                     style={styles.mapStyle}
                     region={region}
-                    maxZoomLevel={18}
+                    maxZoomLevel={17}
                     loadingEnabled
                 >
                     <Polyline coordinates={coords} strokeWidth={3} strokeColor="#4C4CFF" />
-                    <Marker coordinate={region} image={bike} />
+                    <Marker coordinate={region} image={pinMarker} />
                 </MapView>
                 <View style={styles.viewButtons}>
                     {
