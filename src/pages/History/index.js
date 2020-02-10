@@ -45,7 +45,7 @@ export default class History extends Component {
                                     <Text>Data: {format(data.begin, 'dd/MM/yyyy')}</Text>
                                     <Text note>Hora da Partida: {format(data.begin, 'HH:mm')}</Text>
                                     <Text note>Hora da Chegada: {format(data.end, 'HH:mm')}</Text>
-                                    <Text note>Distância: 150 KM</Text>
+                                    <Text note>Distância: {data.distance} KM</Text>
                                 </Body>
                             </ListItem>
                         ))

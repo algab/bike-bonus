@@ -5,6 +5,9 @@ import '@firebase/firestore';
 
 import firebase from '../../services/firebase';
 
+import pinStart from '../../../assets/marker.png';
+import pinFinish from '../../../assets/finish.png';
+
 export default class Way extends Component {
     state = {
         coords: [],
@@ -25,7 +28,7 @@ export default class Way extends Component {
                     longitude: coords[0].longitude,
                     latitudeDelta: 0,
                     longitudeDelta: 0
-                }
+                };
                 this.setState({ coords, region });
             });
     }
@@ -48,6 +51,8 @@ export default class Way extends Component {
                         loadingEnabled
                     >
                         <Polyline coordinates={coords} strokeWidth={3} strokeColor="#4C4CFF" />
+                        <Marker coordinate={region} image={pinStart} />
+                        <Marker coordinate={coords[coords.length - 1]} image={pinFinish} />
                     </MapView>
                 </View>
             )
