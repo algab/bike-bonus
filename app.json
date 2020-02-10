@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bike-bonus",
+    "name": "Bike Bônus",
     "slug": "bike-bonus",
     "privacy": "public",
     "sdkVersion": "36.0.0",
@@ -26,6 +26,14 @@
     "androidStatusBar": {
       "backgroundColor": "#808080",
       "barStyle": "light-content"
+    },
+    "android": {
+      "package": "br.com.bikebonus",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAWjh5Dfh34FUuaMLg3d0DHm4kotSStPeo"
+        }
+      }
     },
     "ios": {
       "supportsTablet": true
