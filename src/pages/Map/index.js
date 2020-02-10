@@ -6,6 +6,7 @@ import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
 import * as TaskManager from 'expo-task-manager';
 import uuid from 'uuid/v4';
+import haversine from 'haversine'
 import '@firebase/firestore';
 
 import Loader from '../../components/Loader';
@@ -143,12 +144,14 @@ export default class Map extends Component {
         await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify([]));
         await firebase.firestore().collection('runs').doc(idRun).update({ end: new Date().getTime() });
         firebase.firestore().collection('runs').doc(idRun).collection('coords').orderBy('timestamp').get()
-            .then(snapshot => {
+            .then(async snapshot => {
                 const coords = [];
                 snapshot.forEach(doc => {
                     coords.push({ latitude: doc.data().latitude, longitude: doc.data().longitude });
                 });
                 const lastCoord = coords[coords.length - 1];
+                const km = haversine(coords[0], lastCoord, { unit: 'km' }).toFixed(2);
+                await firebase.firestore().collection('runs').doc(idRun).update({ distance: km });
                 this.setState({
                     coords: [],
                     watch: null,
