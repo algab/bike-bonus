@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Alert, AppState, AsyncStorage, Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, AppState, AsyncStorage, StyleSheet, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -24,6 +24,7 @@ export default class Map extends Component {
         idRun: '',
         appState: AppState.currentState,
         loading: false,
+        loadingButtons: false,
         pressStart: false,
         pressPause: true,
         pressStop: false,
@@ -50,6 +51,7 @@ export default class Map extends Component {
             });
             const { latitudeDelta, longitudeDelta } = currentPosition(coords.latitude, coords.accuracy);
             this.setState({
+                loadingButtons: true,
                 region: {
                     latitude: coords.latitude,
                     longitude: coords.longitude,
@@ -229,7 +231,7 @@ export default class Map extends Component {
     };
 
     render() {
-        const { region, coords, loading } = this.state;
+        const { region, coords, loading, loadingButtons } = this.state;
         return (
             <View style={styles.container}>
                 <Loader loading={loading} />
@@ -242,38 +244,42 @@ export default class Map extends Component {
                     <Polyline coordinates={coords} strokeWidth={3} strokeColor="#4C4CFF" />
                     <Marker coordinate={region} image={pinMarker} />
                 </MapView>
-                <View style={styles.viewButtons}>
-                    {
-                        !this.state.pressStart && (
-                            <TouchableOpacity
-                                style={[styles.buttonFloat, { backgroundColor: '#4C4CFF' }]}
-                                onPress={this.beginRun}
-                            >
-                                <Ionicons name="md-play" size={22} color="#FFF" />
-                            </TouchableOpacity>
-                        )
-                    }
-                    {
-                        !this.state.pressPause && (
-                            <TouchableOpacity
-                                style={[styles.buttonFloat, { backgroundColor: '#00B200' }]}
-                                onPress={this.pauseRun}
-                            >
-                                <FontAwesome name="pause" size={20} color="#FFF" />
-                            </TouchableOpacity>
-                        )
-                    }
-                    {
-                        this.state.pressStop && (
-                            <TouchableOpacity
-                                style={[styles.buttonFloat, { backgroundColor: '#E50000' }]}
-                                onPress={this.stopRun}
-                            >
-                                <FontAwesome name="stop" size={20} color="#FFF" />
-                            </TouchableOpacity>
-                        )
-                    }
-                </View>
+                {
+                    loadingButtons && (
+                        <View style={styles.viewButtons}>
+                            {
+                                !this.state.pressStart && (
+                                    <TouchableOpacity
+                                        style={[styles.buttonFloat, { backgroundColor: '#4C4CFF' }]}
+                                        onPress={this.beginRun}
+                                    >
+                                        <Ionicons name="md-play" size={22} color="#FFF" />
+                                    </TouchableOpacity>
+                                )
+                            }
+                            {
+                                !this.state.pressPause && (
+                                    <TouchableOpacity
+                                        style={[styles.buttonFloat, { backgroundColor: '#00B200' }]}
+                                        onPress={this.pauseRun}
+                                    >
+                                        <FontAwesome name="pause" size={20} color="#FFF" />
+                                    </TouchableOpacity>
+                                )
+                            }
+                            {
+                                this.state.pressStop && (
+                                    <TouchableOpacity
+                                        style={[styles.buttonFloat, { backgroundColor: '#E50000' }]}
+                                        onPress={this.stopRun}
+                                    >
+                                        <FontAwesome name="stop" size={20} color="#FFF" />
+                                    </TouchableOpacity>
+                                )
+                            }
+                        </View>
+                    )
+                }
             </View>
         )
     }
@@ -286,7 +292,7 @@ const styles = StyleSheet.create({
         position: 'relative'
     },
     mapStyle: {
-        width: Dimensions.get('window').width,
+        width: '100%',
         height: '100%',
     },
     viewButtons: {
@@ -298,7 +304,7 @@ const styles = StyleSheet.create({
     buttonFloat: {
         width: 50,
         height: 50,
-        bottom: 50,
+        bottom: 60,
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 50,
