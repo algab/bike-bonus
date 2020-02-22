@@ -2,8 +2,8 @@ import React, { Component } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AppLoading } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
-import { StackActions, NavigationActions } from 'react-navigation';
 import * as Font from 'expo-font';
+import { CommonActions } from '@react-navigation/native';
 
 export default class Home extends Component {
     state = {
@@ -11,17 +11,18 @@ export default class Home extends Component {
     };
 
     async componentDidMount() {
-        await Font.loadAsync({
-            Roboto: require('../../../node_modules/native-base/Fonts/Roboto.ttf'),
-            Roboto_medium: require('../../../node_modules/native-base/Fonts/Roboto_medium.ttf'),
+        /*await Font.loadAsync({
+            Roboto: require('native-base/Fonts/Roboto.ttf'),
+            Roboto_medium: require('native-base/Fonts/Roboto_medium.ttf'),
             ...Ionicons.font,
-        });
+        });*/
         this.setState({ isReady: true });
-        const resetAction = StackActions.reset({
-            index: 0,
-            actions: [NavigationActions.navigate({ routeName: 'Tabs' })],
-        });
-        this.props.navigation.dispatch(resetAction);
+        setTimeout(() => {
+            this.props.navigation.dispatch(CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Tabs' }]
+            }));
+        }, 200);
     }
 
     render() {

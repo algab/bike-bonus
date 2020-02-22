@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Container, Header, Left, Right, Title, List, ListItem, Body, Text, Thumbnail } from 'native-base';
+import { Container, Content, Header, Left, Right, Title, List, ListItem, Body, Text, Thumbnail } from 'native-base';
 import { format } from 'date-fns';
 import '@firebase/firestore';
 
@@ -34,23 +34,25 @@ export default class History extends Component {
                     </Left>
                     <Right />
                 </Header>
-                <List>
-                    {
-                        runs.map(data => (
-                            <ListItem avatar key={data.id} button={true} onPress={() => navigation.navigate('Way', { id: data.id })}>
-                                <Left>
-                                    <Thumbnail source={require('../../../assets/map.png')} />
-                                </Left>
-                                <Body>
-                                    <Text>Data: {format(data.begin, 'dd/MM/yyyy')}</Text>
-                                    <Text note>Hora da Partida: {format(data.begin, 'HH:mm')}</Text>
-                                    <Text note>Hora da Chegada: {format(data.end, 'HH:mm')}</Text>
-                                    <Text note>Distância: {data.distance} KM</Text>
-                                </Body>
-                            </ListItem>
-                        ))
-                    }
-                </List>
+                <Content>
+                    <List>
+                        {
+                            runs.map(data => (
+                                <ListItem avatar key={data.id} button={true} onPress={() => navigation.navigate('Way', { id: data.id })}>
+                                    <Left>
+                                        <Thumbnail source={require('../../../assets/map.png')} />
+                                    </Left>
+                                    <Body>
+                                        <Text>Data: {format(data.begin, 'dd/MM/yyyy')}</Text>
+                                        <Text note>Hora da Partida: {format(data.begin, 'HH:mm')}</Text>
+                                        <Text note>Hora da Chegada: {format(data.end, 'HH:mm')}</Text>
+                                        <Text note>Distância: {data.distance} KM</Text>
+                                    </Body>
+                                </ListItem>
+                            ))
+                        }
+                    </List>
+                </Content>
             </Container>
         )
     }

@@ -15,8 +15,8 @@ export default class Way extends Component {
     };
 
     async componentDidMount() {
-        const { navigation } = this.props;
-        firebase.firestore().collection('runs').doc(navigation.getParam('id'))
+        const { route } = this.props;
+        firebase.firestore().collection('runs').doc(route.params.id)
             .collection('coords').orderBy('timestamp').get()
             .then(snapshot => {
                 const coords = [];
