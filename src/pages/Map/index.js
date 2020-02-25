@@ -177,13 +177,13 @@ export default class Map extends Component {
     watchPosition = async () => {
         const position = await Location.watchPositionAsync({
             accuracy: Location.Accuracy.Highest,
-            timeInterval: 2000,
+            timeInterval: 1000,
             distanceInterval: 0,
         }, async (location) => this.savePosition(location));
         await Location.startLocationUpdatesAsync(TASK, {
             accuracy: Location.Accuracy.Highest,
-            timeInterval: 2000,
-            distanceInterval: 200
+            timeInterval: 1000,
+            distanceInterval: 400
         });
         this.setState({ watch: position });
     };
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     buttonFloat: {
         width: 50,
         height: 50,
-        bottom: 60,
+        bottom: 50,
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 50,
