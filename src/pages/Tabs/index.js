@@ -8,7 +8,7 @@ import History from '../History';
 const Tab = createBottomTabNavigator();
 
 const Tabs = () => (
-    <Tab.Navigator tabBarOptions={{ activeTintColor: '#4C4CFF' }}>
+    <Tab.Navigator initialRouteName="Map" tabBarOptions={{ activeTintColor: '#4C4CFF', style: { height: 55 } }}>
         <Tab.Screen
             name="Map"
             component={Map}
