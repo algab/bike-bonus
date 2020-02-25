@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { ActivityIndicator, Dimensions, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import '@firebase/firestore';
 
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     },
     mapStyle: {
-        width: Dimensions.get('window').width,
+        width: '100%',
         height: '100%',
     }
 });
