@@ -219,6 +219,7 @@ export default class Map extends Component {
     handleAppStateChange = async (nextAppState) => {
         const { appState, idRun } = this.state;
         if (appState.match(/inactive|background/) && nextAppState === 'active') {
+            this.setState({ loading: true });
             const data = JSON.parse(await AsyncStorage.getItem(TASK_STORAGE));
             if (data) {
                 for (let i = 0; i < data.length; i++) {
@@ -227,7 +228,7 @@ export default class Map extends Component {
                 await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify([]));
             }
         }
-        this.setState({ appState: nextAppState });
+        this.setState({ appState: nextAppState, loading: false });
     };
 
     render() {
