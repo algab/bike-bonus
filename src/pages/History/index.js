@@ -1,9 +1,11 @@
 import React, { Component } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import SkeletonContent from "react-native-skeleton-content";
-import { ListItem, Header } from 'react-native-elements';
+import { ListItem } from 'react-native-elements';
 import { format } from 'date-fns';
 import '@firebase/firestore';
+
+import Header from '../../components/Header';
 
 import firebase from '../../services/firebase';
 
@@ -86,11 +88,7 @@ export default class History extends Component {
     render() {
         return (
             <>
-                <Header
-                    placement="left"
-                    leftComponent={{ text: 'Histórico', style: styles.titleHeader }}
-                    backgroundColor="#4C4CFF"
-                />
+                <Header />
                 <ScrollView style={styles.containerScroll}>
                     {this.listRuns()}
                 </ScrollView>
