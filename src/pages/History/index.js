@@ -11,7 +11,8 @@ import firebase from '../../services/firebase';
 
 export default class History extends Component {
     state = {
-        runs: []
+        runs: [],
+        loading: true
     };
 
     async componentDidMount() {
@@ -23,14 +24,14 @@ export default class History extends Component {
                         runs.push({ ...doc.data(), id: doc.id });
                     }
                 });
-                this.setState({ runs });
+                this.setState({ runs, loading: false });
             });
     }
 
     listRuns = () => {
-        const { runs } = this.state;
+        const { runs, loading } = this.state;
         const { navigation } = this.props;
-        if (runs.length === 0) {
+        if (loading) {
             return this.skeleton();
         } else {
             return runs.map(data => (
