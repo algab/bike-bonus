@@ -19,21 +19,6 @@ import pinMarker from '../../../assets/marker.png';
 const TASK = 'location-task';
 const TASK_STORAGE = 'background-location';
 
-TaskManager.defineTask(TASK, async ({ data }) => {
-    const { locations } = data;
-    let coords = JSON.parse(await AsyncStorage.getItem(TASK_STORAGE));
-    if (coords.length === 0) {
-        for (let i = 0; i < locations[i].length; i++) {
-            coords.push({
-                latitude: locations[i].coords.latitude,
-                longitude: locations[i].coords.longitude,
-                timestamp: locations[i].timestamp,
-            });
-        }
-        await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify(coords));
-    }
-});
-
 export default class Map extends Component {
     state = {
         idRun: '',
@@ -64,6 +49,7 @@ export default class Map extends Component {
                 enableHighAccuracy: true,
                 accuracy: Location.Accuracy.Highest
             });
+            AppState.addEventListener('change', this.handleAppStateChange);
             const { latitudeDelta, longitudeDelta } = currentPosition(coords.latitude, coords.accuracy);
             this.setState({
                 loadingButtons: true,
@@ -74,7 +60,6 @@ export default class Map extends Component {
                     longitudeDelta: longitudeDelta
                 }
             });
-            AppState.addEventListener('change', this.handleAppStateChange);
         }
     };
 
@@ -193,12 +178,12 @@ export default class Map extends Component {
         const position = await Location.watchPositionAsync({
             accuracy: Location.Accuracy.Highest,
             timeInterval: 500,
-            distanceInterval: 0,
+            distanceInterval: 10,
         }, async (location) => this.savePosition(location));
         await Location.startLocationUpdatesAsync(TASK, {
             accuracy: Location.Accuracy.Highest,
-            timeInterval: 500,
-            distanceInterval: 50
+            timeInterval: 100,
+            distanceInterval: 0
         });
         this.setState({ watch: position });
     };
@@ -300,6 +285,19 @@ export default class Map extends Component {
         )
     }
 };
+
+TaskManager.defineTask(TASK, async ({ data }) => {
+    const { locations } = data;
+    let coords = JSON.parse(await AsyncStorage.getItem(TASK_STORAGE));
+    for (let i = 0; i < locations[i].length; i++) {
+        coords.push({
+            latitude: locations[i].coords.latitude,
+            longitude: locations[i].coords.longitude,
+            timestamp: locations[i].timestamp,
+        });
+    }
+    await AsyncStorage.setItem(TASK_STORAGE, JSON.stringify(coords));
+});
 
 const styles = StyleSheet.create({
     container: {
