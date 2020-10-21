@@ -31,7 +31,7 @@
       "package": "com.bikebonus.app",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBWHsac9fTMgXxfAuU0xIFhZbkxYelo0AE"
+          "apiKey": ""
         }
       }
     },
